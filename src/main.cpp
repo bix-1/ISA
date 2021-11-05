@@ -5,24 +5,31 @@
  * @authors: Jakub Bartko    xbartk07@stud.fit.vutbr.cz
  */
 
-#include "main.h"
+/**
+ * TODO:
+ * proccess CLI args
+ * retrieval of emails
+ * saving of emails
+ */
+
+#include "connection.h"
 #include <iostream>
 #include <stdio.h>
 
-/* OpenSSL headers */
-#include "openssl/bio.h"
-#include "openssl/ssl.h"
-#include "openssl/err.h"
+using namespace std;
 
 int main()
+try
 {
-    init_openssl();
+    Connection conn{"jdbix@mail.com", "thisIsMyPassword"};
+    cout << conn.read();
+    cout << conn.login();
 }
-
-void init_openssl()
+catch (const runtime_error &err)
 {
-    SSL_load_error_strings();
-    ERR_load_BIO_strings();
-    OpenSSL_add_all_algorithms();
-    SSL_library_init();
+    cerr << "ERROR: " << err.what() << endl;
+}
+catch (...)
+{
+    cerr << "ERROR: Unknown exception occured\n";
 }
