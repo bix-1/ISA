@@ -30,7 +30,8 @@ try
     password_ = creds.password;
 
     // init server address
-    std::string address = opts.server + ":" + (opts.T ? "995" : "110");
+    std::string port = !opts.port.empty() ? opts.port : (opts.T ? "995" : "110");
+    std::string address = opts.server + ":" + port;
 
     // init connection
     init_openssl();
@@ -39,6 +40,9 @@ try
         throw conn_exception("Failed to create new connection");
     if (BIO_do_connect(bio) <= 0)
         throw conn_exception("Failed to connect");
+
+    // check server response
+    read();
 }
 catch (const conn_exception &err)
 {
@@ -79,18 +83,15 @@ std::string Connection::read()
     {
         throw conn_exception("Connection was closed");
     }
-    else if (x < 0)
+    else if (x < 0 && !BIO_should_retry(bio))
     {
-        if (!BIO_should_retry(bio))
-        {
-            throw conn_exception("Failed to read the response");
-        }
+        throw conn_exception("Failed to read the response");
     }
 
     // process response
-    std::string tmp(buf, 3);
-    if (tmp != "+OK")
-        throw conn_exception("Err on response:\n......." + std::string(buf));
+    std::string resp(buf, 3);
+    if (resp != "+OK")
+        throw conn_exception("Err on response:\n  " + std::string(buf));
 
     return buf;
 }

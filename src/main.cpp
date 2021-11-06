@@ -22,9 +22,10 @@ using namespace std;
 int main(int argc, char *argv[])
 try
 {
-    Connection conn{get_opts(argc, argv)};
-    cout << conn.read();
+    auto opts = get_opts(argc, argv);
+    Connection conn{opts};
     cout << conn.login();
+
 }
 catch (const opts_exception &err)
 {

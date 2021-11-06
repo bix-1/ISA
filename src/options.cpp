@@ -43,14 +43,7 @@ Options get_opts(int argc, char *argv[])
                 break;
 
             case 'p':
-                try
-                {
-                    opts.port = std::stoi(optarg);
-                }
-                catch (...)
-                {
-                    throw opts_exception("Invalid port number \"" + std::string(optarg) + "\"");
-                }
+                opts.port = optarg;
                 break;
 
             case 'T':

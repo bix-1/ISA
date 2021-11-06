@@ -46,7 +46,9 @@ public:
     Connection(Options);
     ~Connection();
 
+    // basic operations
     std::string read();
     void write(std::string msg);
+
     std::string login();
 };

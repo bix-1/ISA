@@ -29,7 +29,7 @@ struct Options
     std::string server;
     std::string auth_file;
     std::string out_dir;
-    int port;
+    std::string port;
 
     bool T = false;
     bool S = false;
