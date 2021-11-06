@@ -22,15 +22,19 @@
 Connection::Connection(Options opts)
 try
 {
-    init_openssl();
+    // init credentials
     auto creds = get_creds(opts.auth_file);
     if (creds.username.empty() || creds.password.empty())
         throw conn_exception("Failed to parse username or password");
     username_ = creds.username;
     password_ = creds.password;
 
-    // CONNECT
-    bio = BIO_new_connect(opts.server.c_str());
+    // init server address
+    std::string address = opts.server + ":" + (opts.T ? "995" : "110");
+
+    // init connection
+    init_openssl();
+    bio = BIO_new_connect(address.c_str());
     if (bio == NULL)
         throw conn_exception("Failed to create new connection");
     if (BIO_do_connect(bio) <= 0)
