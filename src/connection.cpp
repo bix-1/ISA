@@ -7,21 +7,28 @@
 
 #include "connection.h"
 
+#include <sstream>
+#include <fstream>
 #include <iostream>
 #include <stdexcept>
 #include <string.h> // memset
+#include <regex>
 
 /* OpenSSL headers */
 #include "openssl/bio.h"
-#include "openssl/ssl.h"
 #include "openssl/err.h"
+#include "openssl/ssl.h"
 
-Connection::Connection(std::string username, std::string password)
-try : username_{username}, password_{password}
+Connection::Connection(Options opts)
+try
 {
     init_openssl();
+    auto creds = get_creds(opts.auth_file);
+    username_ = creds.username;
+    password_ = creds.password;
+
     // CONNECT
-    bio = BIO_new_connect("pop.mail.com:110");
+    bio = BIO_new_connect(opts.server.c_str());
     if (bio == NULL)
     {
         throw std::runtime_error("Failed to create new connection");
@@ -37,8 +44,20 @@ catch (const std::runtime_error &err)
     throw std::runtime_error("Connection constructor failed");
 }
 
-Connection::~Connection() {
+Connection::~Connection()
+{
     BIO_free_all(bio);
+}
+
+Credentials Connection::get_creds(std::string filename) {
+    std::ifstream file(filename);
+    std::string tmp;
+    Credentials creds;
+
+    file >> tmp >> tmp >> creds.username;
+    file >> tmp >> tmp >> creds.password;
+
+    return creds;
 }
 
 void Connection::init_openssl()
@@ -66,7 +85,7 @@ std::string Connection::read()
     }
 
     // process response
-    std::string tmp (buf, 3);
+    std::string tmp(buf, 3);
     if (tmp != "+OK")
         throw std::runtime_error("Err on response:\n......." + std::string(buf));
 

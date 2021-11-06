@@ -13,21 +13,27 @@
  */
 
 #include "connection.h"
+#include "options.h"
 #include <iostream>
 #include <stdio.h>
 
 using namespace std;
 
-int main()
+int main(int argc, char *argv[])
 try
 {
-    Connection conn{"jdbix@mail.com", "thisIsMyPassword"};
+    Connection conn {get_opts(argc, argv)};
     cout << conn.read();
     cout << conn.login();
 }
 catch (const runtime_error &err)
 {
     cerr << "ERROR: " << err.what() << endl;
+}
+catch (const opts_exception &err)
+{
+    cerr << "ERROR: " << err.what() << endl;
+    cerr << "ERROR: Failed to parse CL options -- see ./popcl --help" << endl;
 }
 catch (...)
 {

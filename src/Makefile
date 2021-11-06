@@ -7,16 +7,17 @@
 
 EXEC = popcl
 FLAGS = -std=c++17 -Wall -Wextra
+MODULES = connection.o options.o
 
 all: $(EXEC)
 
 run: $(EXEC)
-	./$<
+	./$< pop.mail.com:110
 
-$(EXEC): main.cpp connection.o
+$(EXEC): main.cpp $(MODULES)
 	g++ $(FLAGS) $^ -lcrypto -lssl -o $@
 
-connection.o: connection.cpp connection.h
+$(MODULES): %.o: %.cpp
 	g++ $(FLAGS) $< -c -o $@
 
 clean:

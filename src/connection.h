@@ -7,21 +7,29 @@
 
 #pragma once
 
+#include "options.h"
 #include "openssl/bio.h"
 #include <string>
+
+struct Credentials {
+    std::string username;
+    std::string password;
+};
 
 class Connection {
 private:
     static const uint L = 1024;
     static void init_openssl();
+    static Credentials get_creds(std::string filename);
 
     BIO *bio;
     char buf[L];
     std::string username_;
     std::string password_;
+    Options opts_;
 
 public:
-    Connection(std::string username, std::string password);
+    Connection(Options);
     ~Connection();
 
     std::string read();
