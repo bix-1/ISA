@@ -22,18 +22,19 @@ using namespace std;
 int main(int argc, char *argv[])
 try
 {
-    Connection conn {get_opts(argc, argv)};
+    Connection conn{get_opts(argc, argv)};
     cout << conn.read();
     cout << conn.login();
-}
-catch (const runtime_error &err)
-{
-    cerr << "ERROR: " << err.what() << endl;
 }
 catch (const opts_exception &err)
 {
     cerr << "ERROR: " << err.what() << endl;
-    cerr << "ERROR: Failed to parse CL options -- see ./popcl --help" << endl;
+    cerr << "ERROR: Failed to parse CL options -- see ./popcl --help\n";
+}
+catch (const conn_exception &err)
+{
+    cerr << "ERROR: " << err.what() << endl;
+    cerr << "ERROR: Failed to establish connection\n";
 }
 catch (...)
 {

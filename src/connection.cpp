@@ -7,12 +7,12 @@
 
 #include "connection.h"
 
-#include <sstream>
 #include <fstream>
 #include <iostream>
+#include <regex>
+#include <sstream>
 #include <stdexcept>
 #include <string.h> // memset
-#include <regex>
 
 /* OpenSSL headers */
 #include "openssl/bio.h"
@@ -24,24 +24,22 @@ try
 {
     init_openssl();
     auto creds = get_creds(opts.auth_file);
+    if (creds.username.empty() || creds.password.empty())
+        throw conn_exception("Failed to parse username or password");
     username_ = creds.username;
     password_ = creds.password;
 
     // CONNECT
     bio = BIO_new_connect(opts.server.c_str());
     if (bio == NULL)
-    {
-        throw std::runtime_error("Failed to create new connection");
-    }
+        throw conn_exception("Failed to create new connection");
     if (BIO_do_connect(bio) <= 0)
-    {
-        throw std::runtime_error("Failed to connect");
-    }
+        throw conn_exception("Failed to connect");
 }
-catch (const std::runtime_error &err)
+catch (const conn_exception &err)
 {
     std::cerr << "ERROR: " << err.what() << std::endl;
-    throw std::runtime_error("Connection constructor failed");
+    throw conn_exception("Connection constructor failed");
 }
 
 Connection::~Connection()
@@ -49,7 +47,8 @@ Connection::~Connection()
     BIO_free_all(bio);
 }
 
-Credentials Connection::get_creds(std::string filename) {
+Credentials Connection::get_creds(std::string filename)
+{
     std::ifstream file(filename);
     std::string tmp;
     Credentials creds;
@@ -74,20 +73,20 @@ std::string Connection::read()
     int x = BIO_read(bio, buf, L);
     if (x == 0)
     {
-        throw std::runtime_error("Connection was closed");
+        throw conn_exception("Connection was closed");
     }
     else if (x < 0)
     {
         if (!BIO_should_retry(bio))
         {
-            throw std::runtime_error("Failed to read the response");
+            throw conn_exception("Failed to read the response");
         }
     }
 
     // process response
     std::string tmp(buf, 3);
     if (tmp != "+OK")
-        throw std::runtime_error("Err on response:\n......." + std::string(buf));
+        throw conn_exception("Err on response:\n......." + std::string(buf));
 
     return buf;
 }
@@ -99,7 +98,7 @@ void Connection::write(std::string msg)
     {
         if (!BIO_should_retry(bio))
         {
-            throw std::runtime_error("Failed to write message");
+            throw conn_exception("Failed to write message");
         }
     }
 }

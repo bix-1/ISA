@@ -16,6 +16,20 @@ struct Credentials {
     std::string password;
 };
 
+class conn_exception : public std::exception
+{
+private:
+    std::string msg_;
+
+public:
+    conn_exception(std::string msg) : msg_(msg) {}
+
+    const char *what() const throw()
+    {
+        return msg_.c_str();
+    }
+};
+
 class Connection {
 private:
     static const uint L = 1024;
