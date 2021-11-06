@@ -40,6 +40,10 @@ Options get_opts(int argc, char *argv[])
 
             case 'o':
                 opts.out_dir = optarg;
+                if (opts.out_dir.back() != '/')
+                {
+                    opts.out_dir += '/';
+                }
                 break;
 
             case 'p':

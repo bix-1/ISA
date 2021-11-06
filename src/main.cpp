@@ -7,14 +7,14 @@
 
 /**
  * TODO:
- * proccess CLI args
- * retrieval of emails
- * saving of emails
+ * deleting mails
+ * new
  */
 
 #include "connection.h"
 #include "options.h"
 #include <iostream>
+#include <sstream>
 #include <stdio.h>
 
 using namespace std;
@@ -24,8 +24,8 @@ try
 {
     auto opts = get_opts(argc, argv);
     Connection conn{opts};
-    cout << conn.login();
-
+    conn.login();
+    cout << conn.get_all();
 }
 catch (const opts_exception &err)
 {
@@ -35,7 +35,7 @@ catch (const opts_exception &err)
 catch (const conn_exception &err)
 {
     cerr << "ERROR: " << err.what() << endl;
-    cerr << "ERROR: Failed to establish connection\n";
+    cerr << "ERROR: Connection failed\n";
 }
 catch (...)
 {

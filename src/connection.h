@@ -7,11 +7,12 @@
 
 #pragma once
 
-#include "options.h"
 #include "openssl/bio.h"
+#include "options.h"
 #include <string>
 
-struct Credentials {
+struct Credentials
+{
     std::string username;
     std::string password;
 };
@@ -30,7 +31,8 @@ public:
     }
 };
 
-class Connection {
+class Connection
+{
 private:
     static const uint L = 1024;
     static void init_openssl();
@@ -42,13 +44,16 @@ private:
     std::string password_;
     Options opts_;
 
+    bool is_end(std::string);
+
 public:
     Connection(Options);
     ~Connection();
 
     // basic operations
-    std::string read();
+    std::string read(bool check = true);
     void write(std::string msg);
 
     std::string login();
+    std::string get_all();
 };

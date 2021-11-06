@@ -7,20 +7,24 @@
 
 #include "connection.h"
 
+#include <filesystem>
 #include <fstream>
 #include <iostream>
 #include <regex>
 #include <sstream>
 #include <stdexcept>
 #include <string.h> // memset
+#include <vector>
 
 /* OpenSSL headers */
 #include "openssl/bio.h"
 #include "openssl/err.h"
 #include "openssl/ssl.h"
 
+namespace fs = std::filesystem;
+
 Connection::Connection(Options opts)
-try
+try : opts_{opts}
 {
     // init credentials
     auto creds = get_creds(opts.auth_file);
@@ -57,13 +61,13 @@ Connection::~Connection()
 
 Credentials Connection::get_creds(std::string filename)
 {
-    std::ifstream file(filename);
-    std::string tmp;
     Credentials creds;
-
-    file >> tmp >> tmp >> creds.username;
-    file >> tmp >> tmp >> creds.password;
-
+    if (std::ifstream file{filename})
+    {
+        std::string tmp;
+        file >> tmp >> tmp >> creds.username;
+        file >> tmp >> tmp >> creds.password;
+    }
     return creds;
 }
 
@@ -75,7 +79,7 @@ void Connection::init_openssl()
     SSL_library_init();
 }
 
-std::string Connection::read()
+std::string Connection::read(bool check)
 {
     memset(buf, 0, L);
     int x = BIO_read(bio, buf, L);
@@ -89,9 +93,12 @@ std::string Connection::read()
     }
 
     // process response
-    std::string resp(buf, 3);
-    if (resp != "+OK")
-        throw conn_exception("Err on response:\n  " + std::string(buf));
+    if (check)
+    {
+        std::string resp(buf, 3);
+        if (resp != "+OK")
+            throw conn_exception("Err on response:\n  " + std::string(buf));
+    }
 
     return buf;
 }
@@ -116,4 +123,46 @@ std::string Connection::login()
     write("PASS " + password_);
 
     return response + read();
+}
+
+std::string Connection::get_all()
+{
+    write("STAT");
+    std::stringstream ss(read());
+    std::string _;
+    int mail_count, size;
+    ss >> _ >> mail_count >> size;
+    for (auto i = 0; i < mail_count; i++)
+    {
+        fs::create_directories(opts_.out_dir);
+        write("RETR " + std::to_string(i + 1));
+        // check initial response
+        std::string response = read();
+        // get the rest
+        do
+        {
+            response += read(false);
+        } while (!is_end(response));
+
+        // get message ID for filename
+        std::smatch m;
+        std::regex pattern("Message-ID: <(.+)>\r");
+        std::regex_search(response, m, pattern);
+        std::string filename = opts_.out_dir + std::string(m[1]);
+
+        if (std::ofstream file{filename})
+        {
+            file << response.substr(0, response.find("\r\n.\r\n") + 2);
+        }
+        else
+        {
+            std::cerr << "Unable to open file \"" << filename << "\"" << std::endl;
+        }
+    }
+    return "Saved [" + std::to_string(mail_count) + "] messages to dir \"" + opts_.out_dir + "\"\n";
+}
+
+bool Connection::is_end(std::string msg)
+{
+    return msg.substr(msg.length() - 5) == "\r\n.\r\n";
 }
