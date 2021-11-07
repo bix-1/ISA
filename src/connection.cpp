@@ -140,7 +140,12 @@ std::string Connection::get_msgs()
     ss >> _ >> mail_count >> size;
 
     // create dest dir for messages
-    fs::create_directories(opts_.out_dir);
+    try {
+        fs::create_directories(opts_.out_dir);
+    } catch(...)
+    {
+        throw conn_exception("Failed to create dir \"" + opts_.out_dir + "\"");
+    }
 
     // retrieve messages
     for (auto i = 0; i < mail_count; i++)

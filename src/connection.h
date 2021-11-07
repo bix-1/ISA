@@ -40,6 +40,7 @@ private:
     static Credentials get_creds(std::string filename);
     static std::vector<std::string> get_id_list(std::string dir);
     static bool is_skip_file(std::vector<std::string> list, std::string file);
+    static bool is_end(std::string);
 
     BIO *bio;
     char buf[L];
@@ -47,16 +48,16 @@ private:
     std::string password_;
     Options opts_;
 
-    bool is_end(std::string);
 
 public:
     Connection(Options);
     ~Connection();
 
-    // basic operations
+    // basic command operations
     std::string read(bool check = true);
     void write(std::string msg);
 
+    // message operations
     std::string login();
     std::string get_msgs();
     std::string delete_msgs();
