@@ -12,7 +12,7 @@ MODULES = connection.o options.o
 all: $(EXEC)
 
 run: $(EXEC)
-	./$< pop.mail.com -a auth -o out
+	./$< pop.mail.com -a auth -o out -n
 
 $(EXEC): main.cpp $(MODULES)
 	g++ $(FLAGS) $^ -lcrypto -lssl -o $@

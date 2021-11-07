@@ -71,7 +71,7 @@ Options get_opts(int argc, char *argv[])
                 break;
 
             case 'n':
-                opts.nw = true;
+                opts.new_only = true;
                 break;
 
             case '?':

@@ -125,20 +125,30 @@ std::string Connection::login()
     return response + read();
 }
 
-std::string Connection::get_all()
+std::string Connection::get_msgs()
 {
+    // check for messages to ommit -- if -n option specified
+    std::vector<std::string> skip_id_list;
+    if (opts_.new_only)
+        skip_id_list = get_id_list(opts_.out_dir);
+
+    // get messages count
     write("STAT");
     std::stringstream ss(read());
     std::string _;
-    int mail_count, size;
+    int mail_count, size, cnt{};
     ss >> _ >> mail_count >> size;
+
+    // create dest dir for messages
+    fs::create_directories(opts_.out_dir);
+
+    // retrieve messages
     for (auto i = 0; i < mail_count; i++)
     {
-        fs::create_directories(opts_.out_dir);
+        // get n-th message & check initial response
         write("RETR " + std::to_string(i + 1));
-        // check initial response
         std::string response = read();
-        // get the rest
+        // get the rest of message
         do
         {
             response += read(false);
@@ -146,23 +156,75 @@ std::string Connection::get_all()
 
         // get message ID for filename
         std::smatch m;
-        std::regex pattern("Message-ID: <(.+)>\r");
+        std::regex pattern("Message-ID: <(.+)>\r", std::regex_constants::icase);
         std::regex_search(response, m, pattern);
         std::string filename = opts_.out_dir + std::string(m[1]);
+
+        // message might be specified as old -- due to -n flag
+        if (opts_.new_only && !is_skip_file(skip_id_list, filename))
+            continue;
 
         if (std::ofstream file{filename})
         {
             file << response.substr(0, response.find("\r\n.\r\n") + 2);
+            cnt++;
         }
         else
         {
             std::cerr << "Unable to open file \"" << filename << "\"" << std::endl;
         }
     }
-    return "Saved [" + std::to_string(mail_count) + "] messages to dir \"" + opts_.out_dir + "\"\n";
+    return "Saved [" + std::to_string(cnt) + "] messages to dir \"" + opts_.out_dir + "\"\n";
 }
 
 bool Connection::is_end(std::string msg)
 {
     return msg.substr(msg.length() - 5) == "\r\n.\r\n";
+}
+
+std::string Connection::delete_msgs()
+{
+    write("STAT");
+    std::stringstream ss(read());
+    std::string _;
+    int mail_count, size;
+    ss >> _ >> mail_count >> size;
+    auto cnt = 0;
+    for (auto i = 0; i < mail_count; i++)
+    {
+        write("DELE " + std::to_string(i + 1));
+        try
+        {
+            read();
+            cnt++;
+        }
+        catch (const conn_exception &err)
+        {
+            std::cerr << "Delete failed: " << err.what() << std::endl;
+        }
+    }
+
+    /** TODO: remove after testing */
+    // UPDATE state --> delete marked messages
+    // write("QUIT");
+    // read();
+
+    return "Deleted " + std::to_string(cnt) + " messages\n";
+}
+
+std::vector<std::string> Connection::get_id_list(std::string dirname)
+{
+    if (!fs::is_directory(dirname))
+        return std::vector<std::string>();
+
+    std::vector<std::string> out;
+    for (const auto &filename : fs::directory_iterator(dirname))
+        out.push_back(filename.path());
+
+    return out;
+}
+
+bool Connection::is_skip_file(std::vector<std::string> list, std::string file)
+{
+    return std::find(list.begin(), list.end(), file) == list.end();
 }

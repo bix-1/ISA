@@ -22,10 +22,17 @@ using namespace std;
 int main(int argc, char *argv[])
 try
 {
+    // create connection & authorize
     auto opts = get_opts(argc, argv);
     Connection conn{opts};
     conn.login();
-    cout << conn.get_all();
+
+    // retrieve messages
+    cout << conn.get_msgs();
+
+    // delete messages if specified
+    if (opts.del)
+        cout << conn.delete_msgs();
 }
 catch (const opts_exception &err)
 {

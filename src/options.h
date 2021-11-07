@@ -37,7 +37,7 @@ struct Options
     std::string certaddr;
 
     bool del = false;
-    bool nw = false;
+    bool new_only = false;
 };
 
 Options get_opts(int argc, char *argv[]);

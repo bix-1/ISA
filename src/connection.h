@@ -10,6 +10,7 @@
 #include "openssl/bio.h"
 #include "options.h"
 #include <string>
+#include <vector>
 
 struct Credentials
 {
@@ -37,6 +38,8 @@ private:
     static const uint L = 1024;
     static void init_openssl();
     static Credentials get_creds(std::string filename);
+    static std::vector<std::string> get_id_list(std::string dir);
+    static bool is_skip_file(std::vector<std::string> list, std::string file);
 
     BIO *bio;
     char buf[L];
@@ -55,5 +58,6 @@ public:
     void write(std::string msg);
 
     std::string login();
-    std::string get_all();
+    std::string get_msgs();
+    std::string delete_msgs();
 };
