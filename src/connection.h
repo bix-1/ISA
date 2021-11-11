@@ -12,12 +12,6 @@
 #include <string>
 #include <vector>
 
-struct Credentials
-{
-    std::string username;
-    std::string password;
-};
-
 class conn_exception : public std::exception
 {
 private:
@@ -37,12 +31,19 @@ class Connection
 private:
     static const uint L = 1024;
     static void init_openssl();
-    static Credentials get_creds(std::string filename);
     static std::vector<std::string> get_id_list(std::string dir);
     static bool is_skip_file(std::vector<std::string> list, std::string file);
     static bool is_end(std::string);
 
-    BIO *bio;
+    void init_credentials();
+    void load_trust_cert();
+    void conn_create_secured(std::string address);
+    void conn_create_unsecured(std::string address);
+    void conn_make_secure();
+
+    BIO *bio = NULL;
+    SSL_CTX *ctx = NULL;
+    SSL *ssl = NULL;
     char buf[L];
     std::string username_;
     std::string password_;

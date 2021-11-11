@@ -26,27 +26,28 @@ namespace fs = std::filesystem;
 Connection::Connection(Options opts)
 try : opts_{opts}
 {
-    // init credentials
-    auto creds = get_creds(opts.auth_file);
-    if (creds.username.empty() || creds.password.empty())
-        throw conn_exception("Failed to parse username or password");
-    username_ = creds.username;
-    password_ = creds.password;
+    init_credentials();
 
-    // init server address
+    // create server address
     std::string port = !opts.port.empty() ? opts.port : (opts.T ? "995" : "110");
     std::string address = opts.server + ":" + port;
 
-    // init connection
     init_openssl();
-    bio = BIO_new_connect(address.c_str());
-    if (bio == NULL)
-        throw conn_exception("Failed to create new connection");
-    if (BIO_do_connect(bio) <= 0)
-        throw conn_exception("Failed to connect");
 
-    // check server response
-    read();
+    if (opts_.T || opts_.S)
+    {
+        // init context struct & load trust certificates
+        ctx = SSL_CTX_new(SSLv23_client_method());
+        load_trust_cert();
+    }
+
+    if (opts_.T)
+        conn_create_secured(address);
+    else
+        conn_create_unsecured(address);
+
+    if (opts_.S && !opts_.T)
+        conn_make_secure();
 }
 catch (const conn_exception &err)
 {
@@ -56,19 +57,10 @@ catch (const conn_exception &err)
 
 Connection::~Connection()
 {
-    BIO_free_all(bio);
-}
-
-Credentials Connection::get_creds(std::string filename)
-{
-    Credentials creds;
-    if (std::ifstream file{filename})
-    {
-        std::string tmp;
-        file >> tmp >> tmp >> creds.username;
-        file >> tmp >> tmp >> creds.password;
-    }
-    return creds;
+    if (ctx)
+        SSL_CTX_free(ctx);
+    if (bio)
+        BIO_free_all(bio);
 }
 
 void Connection::init_openssl()
@@ -85,7 +77,7 @@ std::string Connection::read(bool check)
     int x = BIO_read(bio, buf, L);
     if (x == 0)
     {
-        throw conn_exception("Connection was closed");
+        throw conn_exception("Failed to read: Connection was closed");
     }
     else if (x < 0 && !BIO_should_retry(bio))
     {
@@ -140,9 +132,11 @@ std::string Connection::get_msgs()
     ss >> _ >> mail_count >> size;
 
     // create dest dir for messages
-    try {
+    try
+    {
         fs::create_directories(opts_.out_dir);
-    } catch(...)
+    }
+    catch (...)
     {
         throw conn_exception("Failed to create dir \"" + opts_.out_dir + "\"");
     }
@@ -232,4 +226,82 @@ std::vector<std::string> Connection::get_id_list(std::string dirname)
 bool Connection::is_skip_file(std::vector<std::string> list, std::string file)
 {
     return std::find(list.begin(), list.end(), file) == list.end();
+}
+
+void Connection::load_trust_cert()
+{
+    const char *certfile = !opts_.certfile.empty() ? opts_.certfile.c_str() : NULL;
+    const char *certaddr = !opts_.certaddr.empty() ? opts_.certaddr.c_str() : NULL;
+    if (certfile || certaddr)
+    {
+        if (!SSL_CTX_load_verify_locations(ctx, certfile, certaddr))
+        {
+            std::cerr << "Secure conn failed\n";
+        }
+    }
+    else
+    {
+        SSL_CTX_set_default_verify_paths(ctx);
+    }
+}
+
+void Connection::conn_create_secured(std::string address)
+{
+    bio = BIO_new_ssl_connect(ctx);
+
+    // check connection
+    if (bio == NULL)
+        throw conn_exception("Failed to create new secure connection");
+
+    BIO_get_ssl(bio, &ssl);
+    SSL_set_mode(ssl, SSL_MODE_AUTO_RETRY);
+    BIO_set_conn_hostname(bio, address.c_str());
+
+    if (BIO_do_connect(bio) <= 0)
+        throw conn_exception("Failed to connect");
+    if (SSL_get_verify_result(ssl) != X509_V_OK)
+        throw conn_exception("Invalid certiticate");
+
+    read();
+}
+
+void Connection::conn_create_unsecured(std::string address)
+{
+    bio = BIO_new_connect(address.c_str());
+
+    // check connection
+    if (bio == NULL)
+        throw conn_exception("Failed to create new connection");
+    if (BIO_do_connect(bio) <= 0)
+        throw conn_exception("Failed to connect");
+
+    // check server response
+    read();
+}
+
+void Connection::conn_make_secure()
+{
+    write("STLS");
+    read();
+
+    bio = BIO_push(BIO_new_ssl(ctx, 1), bio);
+    BIO_get_ssl(bio, &ssl);
+
+    if (BIO_do_connect(bio) <= 0)
+        throw conn_exception("Failed to connect");
+    if (SSL_get_verify_result(ssl) != X509_V_OK)
+        throw conn_exception("Invalid certiticate");
+}
+
+void Connection::init_credentials()
+{
+    if (std::ifstream file{opts_.auth_file})
+    {
+        std::string tmp;
+        file >> tmp >> tmp >> username_;
+        file >> tmp >> tmp >> password_;
+    }
+
+    if (username_.empty() || password_.empty())
+        throw conn_exception("Failed to parse username or password");
 }
