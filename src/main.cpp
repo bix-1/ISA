@@ -5,17 +5,9 @@
  * @authors: Jakub Bartko    xbartk07@stud.fit.vutbr.cz
  */
 
-/**
- * TODO:
- * deleting mails
- * new
- */
-
-#include "connection.h"
-#include "options.h"
-#include <iostream>
-#include <sstream>
-#include <stdio.h>
+#include "connection.h" // conn manipulation
+#include "options.h"    // CL options parsing
+#include <iostream>     // status & err prints
 
 using namespace std;
 

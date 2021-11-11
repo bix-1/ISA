@@ -5,10 +5,9 @@
  * @authors: Jakub Bartko    xbartk07@stud.fit.vutbr.cz
  */
 
-#include "options.h"
-#include <getopt.h>
-#include <iostream>
-#include <stdexcept>
+#include "options.h"    // own header
+#include <getopt.h>     // CL opt parsing
+#include <iostream>     // help print
 #include <string>
 
 Options get_opts(int argc, char *argv[])

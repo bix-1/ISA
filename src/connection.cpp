@@ -5,30 +5,25 @@
  * @authors: Jakub Bartko    xbartk07@stud.fit.vutbr.cz
  */
 
-#include "connection.h"
-
-#include <filesystem>
+#include "connection.h" // own header
+#include <filesystem>   // auth input & msg output
 #include <fstream>
-#include <iostream>
-#include <regex>
-#include <sstream>
-#include <stdexcept>
-#include <string.h> // memset
+#include <iostream> // err prints
+#include <regex>    // fetching Message-ID
+#include <sstream>  // string parsing
+#include <string.h> // BIO_write: memset
 #include <vector>
-
 /* OpenSSL headers */
 #include "openssl/bio.h"
 #include "openssl/err.h"
 #include "openssl/ssl.h"
-
-namespace fs = std::filesystem;
 
 Connection::Connection(Options opts)
 try : opts_{opts}
 {
     init_credentials();
 
-    // create server address
+    // compose server address
     std::string port = !opts.port.empty() ? opts.port : (opts.T ? "995" : "110");
     std::string address = opts.server + ":" + port;
 
@@ -71,161 +66,17 @@ void Connection::init_openssl()
     SSL_library_init();
 }
 
-std::string Connection::read(bool check)
+void Connection::init_credentials()
 {
-    memset(buf, 0, L);
-    int x = BIO_read(bio, buf, L);
-    if (x == 0)
+    if (std::ifstream file{opts_.auth_file})
     {
-        throw conn_exception("Failed to read: Connection was closed");
-    }
-    else if (x < 0 && !BIO_should_retry(bio))
-    {
-        throw conn_exception("Failed to read the response");
+        std::string tmp;
+        file >> tmp >> tmp >> username_;
+        file >> tmp >> tmp >> password_;
     }
 
-    // process response
-    if (check)
-    {
-        std::string resp(buf, 3);
-        if (resp != "+OK")
-            throw conn_exception("Err on response:\n  " + std::string(buf));
-    }
-
-    return buf;
-}
-
-void Connection::write(std::string msg)
-{
-    msg += "\r\n";
-    if (BIO_write(bio, msg.c_str(), msg.length()) <= 0)
-    {
-        if (!BIO_should_retry(bio))
-        {
-            throw conn_exception("Failed to write message");
-        }
-    }
-}
-
-std::string Connection::login()
-{
-    std::string response;
-    write("USER " + username_);
-    response += read();
-    write("PASS " + password_);
-
-    return response + read();
-}
-
-std::string Connection::get_msgs()
-{
-    // check for messages to ommit -- if -n option specified
-    std::vector<std::string> skip_id_list;
-    if (opts_.new_only)
-        skip_id_list = get_id_list(opts_.out_dir);
-
-    // get messages count
-    write("STAT");
-    std::stringstream ss(read());
-    std::string _;
-    int mail_count, size, cnt{};
-    ss >> _ >> mail_count >> size;
-
-    // create dest dir for messages
-    try
-    {
-        fs::create_directories(opts_.out_dir);
-    }
-    catch (...)
-    {
-        throw conn_exception("Failed to create dir \"" + opts_.out_dir + "\"");
-    }
-
-    // retrieve messages
-    for (auto i = 0; i < mail_count; i++)
-    {
-        // get n-th message & check initial response
-        write("RETR " + std::to_string(i + 1));
-        std::string response = read();
-        // get the rest of message
-        do
-        {
-            response += read(false);
-        } while (!is_end(response));
-
-        // get message ID for filename
-        std::smatch m;
-        std::regex pattern("Message-ID: <(.+)>\r", std::regex_constants::icase);
-        std::regex_search(response, m, pattern);
-        std::string filename = opts_.out_dir + std::string(m[1]);
-
-        // message might be specified as old -- due to -n flag
-        if (opts_.new_only && !is_skip_file(skip_id_list, filename))
-            continue;
-
-        if (std::ofstream file{filename})
-        {
-            file << response.substr(0, response.find("\r\n.\r\n") + 2);
-            cnt++;
-        }
-        else
-        {
-            std::cerr << "Unable to open file \"" << filename << "\"" << std::endl;
-        }
-    }
-    return "Saved [" + std::to_string(cnt) + "] messages to dir \"" + opts_.out_dir + "\"\n";
-}
-
-bool Connection::is_end(std::string msg)
-{
-    return msg.substr(msg.length() - 5) == "\r\n.\r\n";
-}
-
-std::string Connection::delete_msgs()
-{
-    write("STAT");
-    std::stringstream ss(read());
-    std::string _;
-    int mail_count, size;
-    ss >> _ >> mail_count >> size;
-    auto cnt = 0;
-    for (auto i = 0; i < mail_count; i++)
-    {
-        write("DELE " + std::to_string(i + 1));
-        try
-        {
-            read();
-            cnt++;
-        }
-        catch (const conn_exception &err)
-        {
-            std::cerr << "Delete failed: " << err.what() << std::endl;
-        }
-    }
-
-    /** TODO: remove after testing */
-    // UPDATE state --> delete marked messages
-    // write("QUIT");
-    // read();
-
-    return "Deleted " + std::to_string(cnt) + " messages\n";
-}
-
-std::vector<std::string> Connection::get_id_list(std::string dirname)
-{
-    if (!fs::is_directory(dirname))
-        return std::vector<std::string>();
-
-    std::vector<std::string> out;
-    for (const auto &filename : fs::directory_iterator(dirname))
-        out.push_back(filename.path());
-
-    return out;
-}
-
-bool Connection::is_skip_file(std::vector<std::string> list, std::string file)
-{
-    return std::find(list.begin(), list.end(), file) == list.end();
+    if (username_.empty() || password_.empty())
+        throw conn_exception("Failed to parse username or password");
 }
 
 void Connection::load_trust_cert()
@@ -235,9 +86,7 @@ void Connection::load_trust_cert()
     if (certfile || certaddr)
     {
         if (!SSL_CTX_load_verify_locations(ctx, certfile, certaddr))
-        {
-            std::cerr << "Secure conn failed\n";
-        }
+            throw conn_exception("Failed to verify trust certificates");
     }
     else
     {
@@ -293,15 +142,159 @@ void Connection::conn_make_secure()
         throw conn_exception("Invalid certiticate");
 }
 
-void Connection::init_credentials()
+std::vector<std::string> Connection::get_id_list(std::string dirname)
 {
-    if (std::ifstream file{opts_.auth_file})
+    // check for specified dir
+    if (!std::filesystem::is_directory(dirname))
+        return std::vector<std::string>();
+
+    // fetch filenames
+    std::vector<std::string> out;
+    for (const auto &filename : std::filesystem::directory_iterator(dirname))
+        out.push_back(filename.path());
+
+    return out;
+}
+
+bool Connection::is_skip_file(std::vector<std::string> list, std::string file)
+{
+    return std::find(list.begin(), list.end(), file) == list.end();
+}
+
+bool Connection::is_end(std::string msg)
+{
+    return msg.substr(msg.length() - 5) == "\r\n.\r\n";
+}
+
+std::string Connection::read(bool check)
+{
+    // clear buffer
+    memset(buf, 0, L);
+    int x = BIO_read(bio, buf, L);
+
+    if (x == 0)
+        throw conn_exception("Failed to read: Connection was closed");
+    else if (x < 0 && !BIO_should_retry(bio))
+        throw conn_exception("Failed to read the response");
+
+    // process response
+    if (check)
     {
-        std::string tmp;
-        file >> tmp >> tmp >> username_;
-        file >> tmp >> tmp >> password_;
+        std::string resp(buf, 3);
+        if (resp != "+OK")
+            throw conn_exception("Err on response:\n  " + std::string(buf));
     }
 
-    if (username_.empty() || password_.empty())
-        throw conn_exception("Failed to parse username or password");
+    return buf;
+}
+
+void Connection::write(std::string msg)
+{
+    msg += "\r\n";
+    if (BIO_write(bio, msg.c_str(), msg.length()) <= 0)
+    {
+        if (!BIO_should_retry(bio))
+            throw conn_exception("Failed to write message");
+    }
+}
+
+std::string Connection::login()
+{
+    std::string response;
+    write("USER " + username_);
+    response += read();
+    write("PASS " + password_);
+
+    return response + read();
+}
+
+std::string Connection::get_msgs()
+{
+    // check for messages to ommit -- if -n option specified
+    std::vector<std::string> skip_id_list;
+    if (opts_.new_only)
+        skip_id_list = get_id_list(opts_.out_dir);
+
+    // get messages count
+    write("STAT");
+    std::stringstream ss(read());
+    std::string _;
+    int mail_count, size, cnt{};
+    ss >> _ >> mail_count >> size;
+
+    // create dest dir for messages
+    try
+    {
+        std::filesystem::create_directories(opts_.out_dir);
+    }
+    catch (...)
+    {
+        throw conn_exception("Failed to create dir \"" + opts_.out_dir + "\"");
+    }
+
+    // retrieve messages
+    for (auto i = 0; i < mail_count; i++)
+    {
+        // get n-th message & check initial response
+        write("RETR " + std::to_string(i + 1));
+        std::string response = read();
+        // get the rest of message
+        do
+        {
+            response += read(false);
+        } while (!is_end(response));
+
+        // get message ID for filename
+        std::smatch m;
+        std::regex pattern("Message-ID: <(.+)>\r", std::regex_constants::icase);
+        std::regex_search(response, m, pattern);
+        std::string filename = opts_.out_dir + std::string(m[1]);
+
+        // message might be specified as old -- due to -n flag
+        if (opts_.new_only && !is_skip_file(skip_id_list, filename))
+            continue;
+
+        if (std::ofstream file{filename})
+        {
+            file << response.substr(0, response.find("\r\n.\r\n") + 2);
+            cnt++;
+        }
+        else
+        {
+            std::cerr << "Unable to open file \"" << filename << "\"" << std::endl;
+        }
+    }
+    return "Saved [" + std::to_string(cnt) + "] messages to dir \"" + opts_.out_dir + "\"\n";
+}
+
+std::string Connection::delete_msgs()
+{
+    // fetch number of messages
+    write("STAT");
+    std::stringstream ss(read());
+    std::string _;
+    int mail_count, size;
+    ss >> _ >> mail_count >> size;
+
+    // change state of msgs --> deleted
+    auto cnt = 0;
+    for (auto i = 0; i < mail_count; i++)
+    {
+        write("DELE " + std::to_string(i + 1));
+        try
+        {
+            read();
+            cnt++;
+        }
+        catch (const conn_exception &err)
+        {
+            std::cerr << "Delete failed: " << err.what() << std::endl;
+        }
+    }
+
+    // UPDATE state --> delete marked messages
+    write("QUIT");
+    read();
+
+    return "Deleted " + std::to_string(cnt) + " messages\n";
 }
