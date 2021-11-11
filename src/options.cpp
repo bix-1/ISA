@@ -5,9 +5,9 @@
  * @authors: Jakub Bartko    xbartk07@stud.fit.vutbr.cz
  */
 
-#include "options.h"    // own header
-#include <getopt.h>     // CL opt parsing
-#include <iostream>     // help print
+#include "options.h" // own header
+#include <getopt.h>  // CL opt parsing
+#include <iostream>  // help print
 #include <string>
 
 Options get_opts(int argc, char *argv[])
@@ -29,8 +29,23 @@ Options get_opts(int argc, char *argv[])
 
         switch (opt)
         {
+            // help
             case 'h':
-                std::cout << "TODO\n";
+                std::cout << "usage: ./popcl <SERVER> [-h] [-p PORT] [-T|-S [-c CERTFILE] [-C CERTADDR]] [-d] [-n] -a AUTH_FILE -o OUT_DIR\n\n"
+                          << "Email client implementing POP3, pop3s & POP3 STARTTLS.\n\n"
+                          << "required arguments:\n"
+                          << "  SERVER\t\tserver address\n"
+                          << "  -a AUTH_FILE\t\tfile with user credentials\n"
+                          << "  -o OUT_DIR\t\tdirectory for saving messages\n"
+                          << "\noptional arguments:\n"
+                          << "  -h, --help\t\tprint this help and exit\n"
+                          << "  -p PORT\t\tserver port\n"
+                          << "  -T\t\t\tenable pop3s connection\n"
+                          << "  -S\t\t\tenable STLS connection\n"
+                          << "  -c CERTFILE\t\tfile with certificates -- used only with [-T|-S]\n"
+                          << "  -C CERTADDR\t\tdirectory with certificates -- used only with [-T|-S]\n"
+                          << "  -d\t\t\tdelete messages after their retrieval\n"
+                          << "  -n\t\t\tretrieve new messages only\n";
                 exit(EXIT_SUCCESS);
 
             case 'a':
