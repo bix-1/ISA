@@ -17,7 +17,7 @@ run: $(EXEC)
 $(EXEC): main.cpp $(MODULES)
 	g++ $(FLAGS) $^ -lcrypto -lssl -o $@
 
-$(MODULES): %.o: %.cpp
+$(MODULES): %.o: %.cpp %.h
 	g++ $(FLAGS) $< -c -o $@
 
 clean:
