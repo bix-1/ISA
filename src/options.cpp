@@ -14,16 +14,19 @@ Options get_opts(int argc, char *argv[])
 {
     Options opts;
 
-    opterr = 0; // disable getopt error call
-
     // get first (unnamed) option: <server>
     if (argc > 2)
         opts.server = argv[1];
 
-    int opt;
+    opterr = 0; // disable getopt error call
+    static struct option long_options[] = {
+        {"help", no_argument, 0, 'h'},
+        {0, 0, 0, 0}};
+
+    int opt, opt_index;
     while (true)
     {
-        opt = getopt(argc, argv, "a:o:hp:TSc:C:dn");
+        opt = getopt_long(argc, argv, "a:o:hp:TSc:C:dn", long_options, &opt_index);
         if (opt == -1)
             break;
 
