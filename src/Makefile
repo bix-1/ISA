@@ -10,6 +10,7 @@ FLAGS = -std=c++17 -Wall -Wextra
 MODULES = connection.o options.o
 CC = g++
 CCMIN = g++-9.1
+LOGIN = xbartk07
 
 all: $(EXEC)
 
@@ -27,6 +28,10 @@ min: *.cpp *.h
 	$(CCMIN) $(FLAGS) options.cpp -c -o options.o
 	$(CCMIN) $(FLAGS) main.cpp $(MODULES) -lcrypto -lssl -o $(EXEC)
 
+pack: $(LOGIN).tar
+
+$(LOGIN).tar: *.cpp *.h Makefile *.pdf README
+	tar -cvf $@ $^
 
 clean:
-	rm -f $(EXEC) *.o
+	rm -f $(EXEC) *.o *.tar
