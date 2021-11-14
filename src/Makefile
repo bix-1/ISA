@@ -9,7 +9,7 @@ EXEC = popcl
 FLAGS = -std=c++17 -Wall -Wextra
 MODULES = connection.o options.o
 CC = g++
-CCMIN = g++-9
+CCMIN = g++-9.1
 
 all: $(EXEC)
 
