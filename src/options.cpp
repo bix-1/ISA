@@ -109,5 +109,8 @@ Options get_opts(int argc, char *argv[])
     if (opts.server.empty() || opts.auth_file.empty() || opts.out_dir.empty())
         throw opts_exception("Missing required CL options");
 
+    if (optind+1 != argc)   // +1 for the first <server> argument
+        throw opts_exception("Invalid CL arguments");
+
     return opts;
 }
