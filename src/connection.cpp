@@ -6,6 +6,7 @@
  */
 
 #include "connection.h" // own header
+#include <algorithm>    // sanitizing filename
 #include <filesystem>   // auth input & msg output
 #include <fstream>
 #include <iostream> // err prints
@@ -158,7 +159,7 @@ std::vector<std::string> Connection::get_id_list(std::string dirname)
 
 bool Connection::is_skip_file(std::vector<std::string> list, std::string file)
 {
-    return std::find(list.begin(), list.end(), file) == list.end();
+    return std::find(list.begin(), list.end(), file) != list.end();
 }
 
 bool Connection::is_end(std::string msg)
@@ -248,10 +249,13 @@ std::string Connection::get_msgs()
         std::smatch m;
         std::regex pattern("Message-ID: <(.+)>\r", std::regex_constants::icase);
         std::regex_search(response, m, pattern);
-        std::string filename = opts_.out_dir + std::string(m[1]);
+        // construct filename
+        std::string filename = std::string(m[1]);
+        std::replace(filename.begin(), filename.end(), '/', '.');
+        filename = opts_.out_dir + filename;
 
         // message might be specified as old -- due to -n flag
-        if (opts_.new_only && !is_skip_file(skip_id_list, filename))
+        if (opts_.new_only && is_skip_file(skip_id_list, filename))
             continue;
 
         if (std::ofstream file{filename})
@@ -261,7 +265,7 @@ std::string Connection::get_msgs()
         }
         else
         {
-            std::cerr << "Unable to open file \"" << filename << "\"" << std::endl;
+            std::cerr << "Failed to open file \"" << filename << "\"" << std::endl;
         }
     }
     return "Saved [" + std::to_string(cnt) + "] messages to dir \"" + opts_.out_dir + "\"\n";
