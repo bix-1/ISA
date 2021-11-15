@@ -1,0 +1,43 @@
+<!-- file: README -->
+## author: Jakub Bartko, xbartk07@stud.fit.vutbr.cz
+
+Program popcl is a POP3 email client implemented as part of project for course ISA at FIT BUT, 2021.
+
+Requirements:
+    g++     version 9 or above
+        Either have g++-9 or above set as the default version, or specify path to suitable compiler using `make CXX=/path/to/g++`
+
+List of submitted files:
+	README
+	manual.pdf
+	Makefile
+	main.cpp
+	connection.cpp
+	connection.h
+	options.cpp
+	options.h
+
+Use `make` to build executable file. Run using `./popcl --help`.
+
+Usage: ./popcl <SERVER> [-h] [-p PORT] [-T|-S [-c CERTFILE] [-C CERTADDR]] [-d] [-n] -a AUTH_FILE -o OUT_DIR
+
+Email client implementing POP3, pop3s & POP3 STARTTLS.
+
+required arguments:
+  SERVER                server address
+  -a AUTH_FILE          file with user credentials
+  -o OUT_DIR            directory for saving messages
+
+optional arguments:
+  -h, --help            print this help and exit
+  -p PORT               server port
+  -T                    enable pop3s connection
+  -S                    enable STLS connection
+  -c CERTFILE           file with certificates -- used only with [-T|-S]
+  -C CERTADDR           directory with certificates -- used only with [-T|-S]
+  -d                    delete messages after their retrieval
+  -n                    retrieve new messages only
+
+Examples:
+    ./popcl pop.mail.com -a auth -o out -T -n
+    > Saved [3] messages to dir "out/"
