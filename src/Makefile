@@ -8,8 +8,7 @@
 EXEC = popcl
 FLAGS = -std=c++17 -Wall -Wextra
 MODULES = connection.o options.o
-CC = g++
-CCMIN = g++-9.1
+CXX = g++
 LOGIN = xbartk07
 
 all: $(EXEC)
@@ -18,15 +17,10 @@ run: $(EXEC)
 	./$< pop.mail.com -a auth -o out -n
 
 $(EXEC): main.cpp $(MODULES)
-	$(CC) $(FLAGS) $^ -lcrypto -lssl -o $@
+	$(CXX) $(FLAGS) $^ -lcrypto -lssl -o $@
 
 $(MODULES): %.o: %.cpp %.h
-	$(CC) $(FLAGS) $< -c -o $@
-
-min: *.cpp *.h
-	$(CCMIN) $(FLAGS) connection.cpp -c -o connection.o
-	$(CCMIN) $(FLAGS) options.cpp -c -o options.o
-	$(CCMIN) $(FLAGS) main.cpp $(MODULES) -lcrypto -lssl -o $(EXEC)
+	$(CXX) $(FLAGS) $< -c -o $@
 
 pack: $(LOGIN).tar
 
